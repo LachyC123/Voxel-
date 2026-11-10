@@ -1,0 +1,35 @@
+// Quick visual tour: screenshots from real gameplay camera angles.
+const { launch } = require('./qa-lib.cjs');
+(async () => {
+  const q = await launch('http://localhost:5173/?autostart=1&seed=7' + (process.argv[2] || ''), { timeScale: 4, viewport: { width: 960, height: 540 } });
+  const t0 = Date.now();
+  await q.wait(1500);
+  console.log('fps probe', await q.ev(() => { const g = window.__bw; return g.frameTimes.slice(-60).reduce((a, b) => a + b, 0) / 60; }));
+  await q.goto('st_rec');
+  await q.ev(() => window.__qa.look(-17.5, -10.3, 0.15));
+  await q.wait(1200); await q.shot('02-reception');
+  await q.goto('pv_st'); await q.goto('pv_cp');
+  await q.ev(() => window.__qa.look(3, 2, 0.12));
+  await q.wait(1200); await q.shot('03-street-east');
+  await q.goto({ x: -3.5, z: 1.2 });
+  await q.ev(() => window.__qa.look(1.5, -1.5, 0.1));
+  await q.wait(1200); await q.shot('04-shopfront');
+  await q.goto('sh_a');
+  await q.ev(() => window.__qa.look(6, -6, 0.15));
+  await q.wait(1200); await q.shot('05-shop-inside');
+  await q.goto('sr_drop');
+  await q.ev(() => window.__qa.look(0, -11.5, 0.15));
+  await q.wait(1200); await q.shot('06-stockroom');
+  await q.goto('ln_rear'); await q.goto('ln_gate');
+  await q.ev(() => window.__qa.look(-6, -15, 0.1));
+  await q.wait(1200); await q.shot('07-lane');
+  await q.goto('gd_a');
+  await q.ev(() => window.__qa.look(8, -24, 0.15));
+  await q.wait(1200); await q.shot('08-garden');
+  await q.goto('pv_st'); await q.goto({ x: -17, z: 6 });
+  await q.ev(() => window.__qa.look(-17, -2, -0.12));
+  await q.wait(1200); await q.shot('09-station-front');
+  console.log('npcs', JSON.stringify(await q.ev(() => ['mara', 'glen', 'june', 'toby', 'rhys', 'sgt', 'pip'].map((i) => [i, window.__qa.npc(i)]))));
+  console.log('elapsed', Date.now() - t0);
+  await q.done();
+})().catch((e) => { console.error('FAILED', e); process.exit(1); });

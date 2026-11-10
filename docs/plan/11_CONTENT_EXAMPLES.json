@@ -1,0 +1,151 @@
+{
+  "notice": "Illustrative design data, not executable gameplay. IDs and asset paths are proposed.",
+  "schemaVersion": 1,
+  "npc": {
+    "id": "resident_mara",
+    "name": "Mara",
+    "home": "shop_flat",
+    "work": "corner_shop",
+    "traits": {
+      "confidence": 0.75,
+      "patience": 0.45,
+      "honesty": 0.85
+    },
+    "routine": [
+      {
+        "time": "08:00",
+        "activity": "open_shop"
+      },
+      {
+        "time": "09:00",
+        "activity": "serve_and_restock"
+      },
+      {
+        "time": "18:00",
+        "activity": "close_shop"
+      }
+    ],
+    "memoryCategories": [
+      "helped",
+      "property_recovered",
+      "wrongly_accused"
+    ]
+  },
+  "building": {
+    "id": "corner_shop",
+    "floors": [
+      {
+        "level": 0,
+        "rooms": [
+          "sales_floor",
+          "stockroom",
+          "office"
+        ]
+      },
+      {
+        "level": 1,
+        "rooms": [
+          "shop_flat"
+        ]
+      }
+    ],
+    "portals": [
+      {
+        "id": "shop_front",
+        "from": "high_street",
+        "to": "sales_floor",
+        "access": "opening_hours"
+      },
+      {
+        "id": "shop_rear",
+        "from": "service_lane",
+        "to": "stockroom",
+        "access": "permission_or_assignment"
+      },
+      {
+        "id": "shop_stair",
+        "from": "office",
+        "to": "shop_flat",
+        "access": "resident_permission_or_assignment"
+      }
+    ]
+  },
+  "incident": {
+    "id": "corner_shop_missing_goods",
+    "roles": [
+      "owner",
+      "involved_person",
+      "optional_witness"
+    ],
+    "requiredLocations": [
+      "sales_floor",
+      "service_lane"
+    ],
+    "factVariants": [
+      "unpaid_item_taken",
+      "valid_purchase_misunderstood"
+    ],
+    "states": [
+      "staged",
+      "reported",
+      "active",
+      "stabilised",
+      "resolved",
+      "escaped",
+      "handed_over"
+    ],
+    "outcomes": [
+      "misunderstanding_resolved",
+      "property_recovered",
+      "responsible_person_identified",
+      "case_left_open"
+    ],
+    "rewardPolicy": {
+      "oncePerResolution": true,
+      "requiresOutcomeEvidence": true
+    }
+  },
+  "item": {
+    "id": "torch_basic",
+    "displayName": "Patrol torch",
+    "model": "models/items/torch_basic.glb",
+    "icon": "icons/items/torch_basic.png",
+    "compatibleSlots": [
+      "belt",
+      "locker"
+    ],
+    "actions": [
+      "equip",
+      "toggle_light",
+      "holster"
+    ],
+    "unlock": "initial_issue"
+  },
+  "reaction": {
+    "id": "carrying_box_bump",
+    "requires": [
+      "standing",
+      "holding_box"
+    ],
+    "trigger": "filtered_contact_above_brush_threshold",
+    "sequence": [
+      "look_towards_contact",
+      "corrective_step",
+      "possible_drop",
+      "recover",
+      "contextual_acknowledgment"
+    ],
+    "rules": [
+      "no_duplicate_item_spawn",
+      "suppress_duplicate_contact_dialogue",
+      "preserve_incident_status"
+    ]
+  },
+  "rewardTransaction": {
+    "id": "example_shift01_case01_resolution",
+    "incidentId": "example_case01",
+    "careerXp": 40,
+    "reason": "Supported incident resolution",
+    "applied": false
+  }
+}
