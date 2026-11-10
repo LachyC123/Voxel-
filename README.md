@@ -8,10 +8,14 @@ A single-player, third-person, voxel-style police sandbox for desktop browsers, 
 
 More captures from a played shift are in [`docs/screenshots/`](docs/screenshots/): the menu, locker, briefing, High Street, a conversation, the shop, the notebook and the stockroom by torchlight.
 
-## Run it
+## Play it
+Download [`play.html`](play.html) and double-click it. The whole game is in that one file: no install, no server. It needs a desktop browser with WebGL 2 and WebAssembly, and a keyboard and mouse.
+
+## Run it from source
 ```
 npm install
-npm run dev      # http://localhost:5173
+npm run dev            # http://localhost:5173, with the dev tools
+npm run build:single   # rebuild play.html after changing the source
 ```
 `npm run build` type-checks and writes a production build to `dist/`; `npm run preview` serves it. Needs a browser with WebGL 2 and WebAssembly. Keyboard and mouse only.
 
