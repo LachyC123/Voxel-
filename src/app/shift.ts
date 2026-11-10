@@ -158,8 +158,7 @@ export class Shift {
       this.items.pushStack('pip_box', pip.char, this.chars);
       const lap = (): void => {
         pip.setPlan('work_drill', [
-          // came back without the box last time? fetch it before the next lap
-          { t: 'do', fn: () => { if (!pip.char.carrying && this.items.get('pip_box').state === 'world') { pip.dropped = ['pip_box']; this.gatherDropped(pip); } } },
+
           { t: 'goto', to: 'y2', wobble: 0.25 }, { t: 'goto', to: 'y3' }, { t: 'goto', to: 'y4' }, { t: 'goto', to: 'y5' },
           { t: 'goto', to: 'y6' }, { t: 'goto', to: 'y7' }, { t: 'goto', to: 'y1', wobble: 0.25 },
           { t: 'wait', s: 2.5, gesture: 'lookAround' },
@@ -343,8 +342,13 @@ export class Shift {
               this.items.pushStack(id, npc.char, this.chars);
               this.events.emit({ type: 'ItemRetrieved', actor: npc.id, target: id, pos: npc.char.pos.clone(), visible: true });
             } else if (it.state === 'world') {
-              npc.sayOne(['I will come back for that one.', 'That one can stay there for now.']);
-              this.events.emit({ type: 'ItemAbandoned', actor: npc.id, target: id, data: { reason: 'unreachable' } });
+              // a stated reason now, and a genuine second try later
+              const tries = (npc.retries.get(id) ?? 0) + 1;
+              npc.retries.set(id, tries);
+              npc.sayOne(tries < 3 ? ['I will come back for that one.', 'That one can stay there for now.'] : ['Right. That one lives there now.']);
+              if (tries < 3 && !npc.deferred.includes(id)) npc.deferred.push(id);
+              npc.retryAt = this.time + 12;
+              this.events.emit({ type: 'ItemAbandoned', actor: npc.id, target: id, data: { reason: 'unreachable', final: tries >= 3 } });
             }
           },
         },
@@ -477,7 +481,16 @@ export class Shift {
     this.reactions.now = this.time;
     this.flow.update(dt);
     for (const inc of this.incidents) inc.update(dt);
-    for (const n of this.npcs.values()) n.update(dt);
+    for (const n of this.npcs.values()) {
+      // back for anything left behind earlier, once they are free and it is their turn
+      if (n.deferred.length && this.time > n.retryAt && n.char.motion === 'animated' && !n.busy && !n.inConversation && !n.char.hidden
+        && !['acknowledge', 'gather', 'gather_loop'].includes(n.planName)) {
+        n.dropped.push(...n.deferred.filter((id) => this.items.get(id).state === 'world' && !n.dropped.includes(id)));
+        n.deferred = [];
+        if (n.dropped.length) this.gatherDropped(n);
+      }
+      n.update(dt);
+    }
     for (const c of this.chars.values()) c.step(dt);
     this.town.doors.step(dt, this.chars.values(), this.reactions);
     this.town.van.step(dt, this.chars.values());
@@ -503,6 +516,7 @@ export class Shift {
     if (this.disposed) return;
     this.disposed = true;
     this.events.dispose();
+    this.items.dispose(); // before the rigs: held items hang off their hands
     for (const c of this.chars.values()) c.dispose();
     this.chars.clear();
     this.npcs.clear();

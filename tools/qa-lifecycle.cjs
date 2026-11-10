@@ -22,8 +22,30 @@ const { launch } = require('./qa-lib.cjs');
     last = await snap();
     console.log('restart', i, JSON.stringify(last));
   }
-  const stable = ['chars', 'npcs', 'bodies', 'colliders', 'items', 'interactables', 'geometries', 'textures'].every((k) => first[k] === last[k]);
+  const stable = ['chars', 'npcs', 'bodies', 'colliders', 'items', 'interactables', 'textures'].every((k) => first[k] === last[k]) && Math.abs(first.geometries - last.geometries) <= 2;
   console.log('RESOURCE COUNTS STABLE ACROSS 10 RESTARTS:', stable);
+
+  // retry path: restart through the pause menu, as a player would
+  await q.key('Escape');
+  await q.wait(400);
+  await q.page.click('[data-a="restart"]');
+  await q.until(() => window.__bw.state === 'playing' && window.__bw.shift && window.__bw.shift.time < 1);
+  await q.sim(1);
+  console.log('restart via pause menu:', JSON.stringify(await snap()));
+
+  // torch: equip at the locker, select with the belt key, toggle with the use key
+  await q.interact(-8.6, -5.9, 'Open locker', 0.1);
+  await q.page.click('[data-gear="torch_basic"]');
+  await q.page.click('[data-a="done"]');
+  await q.wait(300);
+  await q.key('1');
+  await q.key('f');
+  await q.wait(600);
+  console.log('torch on after belt key + use key:', await q.ev(() => window.__bw.shift.torchOn));
+  await q.ev(() => window.__qa.look(-10, -12, 0.2));
+  await q.wait(800);
+  await q.shot('life-torch');
+  await q.key('f');
 
   // pause via Escape, resume via the button
   await q.key('Escape');

@@ -36,8 +36,8 @@ async function clockOff(q) {
 }
 
 (async () => {
-  const variant = mode === 'innocent' ? '&variant=innocent&who=toby' : '&variant=guilty&who=rhys';
-  const q = await launch(`http://localhost:5173/?autostart=1&seed=11&shadows=0${variant}${extra}`, { timeScale: 4, viewport: { width: 960, height: 540 } });
+  const variant = mode === 'innocent' || mode === 'wrongful' ? '&variant=innocent&who=toby' : '&variant=guilty&who=rhys';
+  const q = await launch(`http://localhost:5173/?autostart=1&seed=11&shadows=0${variant}${extra}`, { timeScale: 4, viewport: { width: Number(process.env.QA_W || 960), height: Number(process.env.QA_H || 540) } });
   global.__q = q;
   const S = () => q.ev(() => { const s = window.__bw.shift.shoplifting; return { state: s.state, phase: s.phase, k: s.k }; });
   await q.wait(800);
@@ -73,10 +73,25 @@ async function clockOff(q) {
   // ---------------- shop theft
   log('shop:', JSON.stringify(await S()), 'subs', JSON.stringify(await q.ev(() => window.__qa.subs())));
   await q.shot(`${mode}-shout`);
-  const who = mode === 'innocent' ? 'toby' : 'rhys';
+  const who = mode === 'innocent' || mode === 'wrongful' ? 'toby' : 'rhys';
   log('june beliefs:', JSON.stringify(await q.ev(() => window.__bw.shift.npcs.get('june').beliefs.filter((b) => ['TookItem', 'PaidAtTill', 'LeftWithItem', 'Shout'].includes(b.type)).map((b) => b.type + ':' + b.how))));
 
-  if (mode === 'innocent') {
+  if (mode === 'wrongful') {
+    // the hasty route: arrest without checking anything
+    d = await q.talk(who);
+    log(who, 'greets:', d.text);
+    d = await q.say('I am arresting you');
+    log(who + ':', d.text);
+    await q.shot(`${mode}-arrest`);
+    await q.leave();
+    await q.goto('st_brief', 3.0, 600000);
+    await q.until((w) => window.__bw.shift.npcs.get(w).char.pos.distanceTo(window.__bw.shift.npcs.get('sgt').char.pos) < 7, who, 600000);
+    d = await q.talk('sgt');
+    d = await q.say('Detainee for you');
+    log('sgt:', d.text);
+    await q.shot(`${mode}-custody`);
+    await q.leave();
+  } else if (mode === 'innocent') {
     // do it properly: account, till roll, then the customer
     await q.ev(() => window.__qa.chase('mara', 3.5));
     await q.until(() => window.__bw.shift.npcs.get('mara').char.pos.distanceTo(window.__bw.shift.player.pos) < 2.2);
@@ -155,7 +170,12 @@ async function clockOff(q) {
     const tin = await q.ev(() => { const it = window.__bw.shift.items.get('tin_01'); const p = window.__bw.shift.items.worldPos('tin_01'); return { state: it.state, place: it.place, pos: [p.x, p.y, p.z] }; });
     log('tin:', JSON.stringify(tin), 'carried', JSON.stringify(await q.ev(() => window.__bw.shift.carried)));
     if (tin.state === 'world') {
-      await q.goto({ x: tin.pos[0] + 0.6, z: tin.pos[2] + 0.6 }, 3.5, 600000);
+      // walk to the nearest path node, then straight towards the tin until the prompt offers it
+      await q.ev(([x, z]) => { const sh = window.__bw.shift; const n = sh.town.nav.nearest({ x, z }, sh.phys); window.__qa.goto(n.id, 3.5); }, [tin.pos[0], tin.pos[2]]);
+      await q.until(() => window.__qa.arrived, null, 600000);
+      await q.ev(([x, z]) => { window.__qa.direct(x, z, 1.6); window.__qa.look(x, z, 0.8); }, [tin.pos[0], tin.pos[2]]);
+      await q.until(() => (window.__qa.prompt() || '').includes('Pick up') || window.__qa.arrived, null, 120000);
+      await q.ev(() => window.__qa.stop());
       await q.interact(tin.pos[0], tin.pos[2], 'Pick up', 0.8);
       await q.key('e'); // idempotency: a second press must not collect it again
       log('carried after pickup:', JSON.stringify(await q.ev(() => window.__bw.shift.carried)));
@@ -193,7 +213,7 @@ async function clockOff(q) {
     d = await q.say('Is this your van');
     log('glen:', d.text.slice(0, 80));
     await q.leave();
-    if (!(await q.ev(() => window.__bw.shift.town.van.atBay))) {
+    if (await q.ev(() => { const v = window.__bw.shift.town.van; return !v.atBay && !v.moving && window.__bw.shift.parking.isLive(); })) {
       await q.goto({ x: 2.4, z: 2.2 });
       await q.interact(2.6, 3.4, 'Inspect', 0.05);
       await q.shot(`${mode}-van-inspect`);
@@ -243,6 +263,16 @@ async function clockOff(q) {
   log('shift 2 mara greets:', d.text);
   await q.leave();
   await q.shot(`${mode}-shift2-mara`);
+  for (const id of ['toby', 'rhys', 'glen']) {
+    const n = await q.ev((i) => { const x = window.__bw.shift.npcs.get(i); return { hidden: x.char.hidden, mem: x.memories.map((m) => m.cat) }; }, id);
+    log('shift 2 memory', id, JSON.stringify(n.mem));
+  }
+  if (mode === 'wrongful') {
+    d = await q.talk('toby');
+    log('shift 2 toby greets:', d.text);
+    await q.shot(`${mode}-shift2-toby`);
+    await q.leave();
+  }
   await q.done();
 })().catch(async (e) => {
   console.error('FAILED', e.message.split('\n')[0], e.stack.split('\n').slice(1, 4).join(' | '));

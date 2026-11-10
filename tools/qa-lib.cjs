@@ -23,6 +23,8 @@ async function launch(url, opts = {}) {
       qa.arrived = false;
       qa.t0 = sh.time;
     };
+    // steer straight at a point (no nav graph), e.g. up a flight of steps
+    qa.direct = (x, z, speed = 2.5) => { qa.path = [{ x, z }]; qa.speed = speed; qa.arrived = false; };
     qa.chase = (id, speed = 5.8) => { qa.chaseId = id; qa.speed = speed; qa.arrived = false; qa.path = null; };
     qa.stop = () => { qa.path = null; qa.chaseId = null; qa.arrived = true; };
     qa.look = (x, z, pitch = 0.2) => {
@@ -74,6 +76,10 @@ async function launch(url, opts = {}) {
     key: async (k) => { await page.keyboard.press(k); await page.waitForTimeout(120); },
     async goto(target, speed = 3.5, timeout = 90000) {
       await page.evaluate(([t, s]) => window.__qa.goto(t, s), [target, speed]);
+      await page.waitForFunction(() => window.__qa.arrived, null, { timeout });
+    },
+    async direct(x, z, speed = 2.5, timeout = 60000) {
+      await page.evaluate(([a, b, s]) => window.__qa.direct(a, b, s), [x, z, speed]);
       await page.waitForFunction(() => window.__qa.arrived, null, { timeout });
     },
     // real interaction: look at a point, wait for the expected prompt, press E

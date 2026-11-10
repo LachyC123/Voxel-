@@ -350,7 +350,8 @@ export class ParkingIncident implements Incident {
     if (!this.isLive()) return null;
     const van = this.shift.town.van;
     let status = 'Speak to the shop owner and the driver. The shop is east along the High Street.';
-    if (this.moveRequested) status = 'The driver has agreed to move the van.';
+    if (this.moveRequested === 'self') status = 'The driver has finished and is moving off by himself.';
+    else if (this.moveRequested) status = 'The driver has agreed to move the van.';
     else if (this.waitAgreed) status = 'You told the driver he can finish. Let the shop owner know.';
     else if (this.heardMara && this.heardGlen) status = 'You have both accounts. Ask him to move, or let him finish his drop.';
     else if (this.heardMara) status = 'You have the owner’s account. Hear the driver’s side.';

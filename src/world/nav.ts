@@ -114,15 +114,46 @@ export class Nav {
     return this.adj.get(a)?.find((e) => e.to === b)?.door;
   }
 
+  /**
+   * Can a person walk this straight line? Two rays a shoulder-width apart, and
+   * door leaves count as obstacles whether open or shut.
+   */
+  clearWalk(a: { x: number; z: number }, b: { x: number; z: number }, phys: Physics, y = 0.12): boolean {
+    const dx = b.x - a.x, dz = b.z - a.z;
+    const len = Math.hypot(dx, dz);
+    if (len < 1e-3) return true;
+    const px = (-dz / len) * 0.26, pz = (dx / len) * 0.26;
+    const mask = G.STATIC | G.GLASS | G.VEHICLE | G.DOOR;
+    const p = new THREE.Vector3(), q = new THREE.Vector3();
+    for (const s of [1, -1]) {
+      p.set(a.x + px * s, y + 0.5, a.z + pz * s);
+      q.set(b.x + px * s, y + 0.5, b.z + pz * s);
+      if (phys.raycast(p, q, mask)) return false;
+    }
+    return true;
+  }
+
   /** Walkable steps from a position to a target node or free position. */
   path(
     from: { x: number; z: number }, target: string | { x: number; z: number }, phys: Physics,
     avoid?: { x: number; z: number; radius: number; penalty: number }, blockedDoors?: Set<string>,
   ): PathStep[] | null {
-    const start = this.nearest(from, phys);
     const endNode = typeof target === 'string' ? this.nodes.get(target) : this.nearest(target, phys);
     if (!endNode) return null;
-    const ids = this.route(start.id, endNode.id, avoid, blockedDoors);
+    // candidate start nodes: the few closest that can be walked to directly
+    const near = [...this.nodes.values()]
+      .map((n) => ({ n, d: Math.hypot(n.x - from.x, n.z - from.z) }))
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 6)
+      .filter(({ n, d }) => d < 0.3 || (d < 7 && this.clearWalk(from, n, phys)));
+    let ids: string[] | null = null;
+    let best = Infinity;
+    for (const { n, d } of near.length ? near : [{ n: this.nearest(from, phys), d: 0 }]) {
+      const r = this.route(n.id, endNode.id, avoid, blockedDoors);
+      if (!r) continue;
+      const cost = d + this.routeCost(r);
+      if (cost < best) { best = cost; ids = r; }
+    }
     if (!ids) return null;
     const steps: PathStep[] = [];
     for (let i = 0; i < ids.length; i++) {

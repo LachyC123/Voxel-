@@ -88,6 +88,11 @@ export class Npc {
   onRecovered: ((from: string, e: SimEvent) => boolean) | null = null;
   /** Items this NPC dropped and still means to collect. */
   dropped: string[] = [];
+  /** Items left behind for now ("I will come back for that one") and when to try again. */
+  deferred: string[] = [];
+  retryAt = 0;
+  readonly retries = new Map<string, number>();
+  private excuseAt = 0;
 
   constructor(readonly def: ResidentDef, readonly char: Character, private shift: Shift, readonly memories: Memory[]) {
     char.accel = 9;
@@ -288,8 +293,8 @@ export class Npc {
     tr.fear = Math.max(0, tr.fear - dt * 0.03);
     tr.frustration = Math.max(0, tr.frustration - dt * 0.012);
     tr.embarrassment = Math.max(0, tr.embarrassment - dt * 0.03);
-    if (c.hidden) return;
-    if (c.motion !== 'animated') {
+    // a hidden person (e.g. sat in a van) cannot move, but their plan still runs
+    if (!c.hidden && c.motion !== 'animated') {
       // physics/reaction owns the body; planning is paused, not advanced
       c.wishSpeed = 0;
       return;
@@ -446,6 +451,15 @@ export class Npc {
         p.side = -p.side;
         p.sideT = 0.7;
         if (p.stalls === 3) p.path = null; // replan from here
+        if (p.stalls === 2 && sh.time > this.excuseAt) {
+          // someone standing in the way? ask, rather than shoving
+          const pl = sh.player;
+          const bx = pl.pos.x - c.pos.x, bz = pl.pos.z - c.pos.z;
+          if (Math.hypot(bx, bz) < 1.3 && bx * (step.x - c.pos.x) + bz * (step.z - c.pos.z) > 0) {
+            this.excuseAt = sh.time + 8;
+            this.sayOne(['Excuse me, officer — could I get past?', 'Sorry, can I squeeze through?', 'Mind if I come by?']);
+          }
+        }
         if (p.stalls >= 7) {
           sh.events.emit({ type: 'RouteFailed', actor: this.id });
           this.nextStep();

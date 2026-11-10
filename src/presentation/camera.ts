@@ -48,7 +48,8 @@ export class CameraRig {
     const dir = this.b.set(Math.sin(this.yaw) * cp, sp, Math.cos(this.yaw) * cp);
     // shoulder offset only when there is room for it
     const r = this.right(new THREE.Vector3());
-    const shoulder = Math.min(0.38, this.curDist * 0.14);
+    // constant for a given setting: tying it to the current distance made the camera pump in doorways
+    const shoulder = Math.min(0.36, this.distance * 0.11);
     const from = this.pivot.clone().addScaledVector(r, shoulder);
     const mask = G.STATIC | G.GLASS | G.DOOR | G.VEHICLE;
     const sideHit = phys.raycast(this.pivot, from, mask);

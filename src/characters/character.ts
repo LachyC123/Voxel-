@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { G, Physics, RAPIER, SOLID, groups } from '../physics/physics';
 import { EventBus } from '../simulation/events';
 import { Items } from '../world/items';
+import { disposeTree } from '../world/voxel';
 import { Gesture, Outfit, P, Pose, Rig, newPose, poseDown, poseGetUp, poseLocomotion, poseSeated, poseStumble } from './rig';
 
 // Ownership state machine (docs/plan/03): animated → reactive → stumbling →
@@ -522,6 +523,7 @@ export class Character {
     w.removeCharacterController(this.cc);
     this.env.phys.owners.delete(this.collider.handle);
     w.removeRigidBody(this.body);
+    disposeTree(this.rig.root); // free the rig's GPU geometry
     this.rig.root.removeFromParent();
   }
 }

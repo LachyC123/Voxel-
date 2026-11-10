@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ITEM_DEFS, ItemDef } from '../content/items';
 import { Physics } from '../physics/physics';
-import { VoxelBuilder } from './voxel';
+import { VoxelBuilder, disposeTree } from './voxel';
 import type { Character } from '../characters/character';
 
 // World item instances. This registry is the single authority on where an item
@@ -166,6 +166,15 @@ export class Items {
     const inst = this.get(id);
     inst.mesh.updateWorldMatrix(true, false);
     return inst.mesh.getWorldPosition(out);
+  }
+
+  /** Free every instance mesh, including stored ones that are not in the scene. */
+  dispose(): void {
+    for (const it of this.all.values()) {
+      it.mesh.removeFromParent();
+      disposeTree(it.mesh);
+    }
+    this.all.clear();
   }
 
   /** Consistency audit used by the automated yard test. */

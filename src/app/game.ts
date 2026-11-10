@@ -9,6 +9,7 @@ import { renderItemIcons } from '../presentation/icons';
 import { Hud } from '../ui/hud';
 import { ReviewData, ScreenHost, Screens } from '../ui/screens';
 import { buildItemMesh } from '../world/items';
+import { disposeTree } from '../world/voxel';
 import { Input } from './input';
 import { Interactable, Shift, ShiftHost, ShiftOptions } from './shift';
 
@@ -108,7 +109,8 @@ export class Game implements ShiftHost, ScreenHost {
     this.screens.menu();
     if (this.dev && this.params.get('scenario') === 'yard') this.startYard();
     else if (this.dev && this.params.has('autostart')) this.startShift();
-    if (this.dev && this.params.has('autotest')) void import('../dev/autotest').then((m) => m.runYardAutotest(this));
+    // referenced through import.meta.env.DEV directly so production builds drop the test module
+    if (import.meta.env.DEV && this.params.has('autotest')) void import('../dev/autotest').then((m) => m.runYardAutotest(this));
     this.last = performance.now();
     requestAnimationFrame((t) => this.frame(t));
   }
@@ -279,13 +281,11 @@ export class Game implements ShiftHost, ScreenHost {
   private disposeShift(): void {
     if (!this.shift) return;
     this.closeDialogue();
-    this.tools.forEach((m) => m.removeFromParent());
-    this.tools.clear();
+    this.clearTools();
     this.shift.dispose();
     this.shift = null;
     this.target = null;
     this.targetRun = null;
-    this.autopilot = null;
     this.devTick = null;
     this.renderer.renderLists.dispose();
   }
@@ -301,8 +301,7 @@ export class Game implements ShiftHost, ScreenHost {
   private refreshTools(): void {
     const sh = this.shift;
     if (!sh) return;
-    this.tools.forEach((m) => m.removeFromParent());
-    this.tools.clear();
+    this.clearTools();
     for (const id of this.career.data.belt) {
       if (!id || this.tools.has(id)) continue;
       const m = buildItemMesh(ITEM_DEFS[id]);
@@ -314,6 +313,14 @@ export class Game implements ShiftHost, ScreenHost {
       this.tools.set(id, m);
     }
     this.select(this.selected);
+  }
+
+  private clearTools(): void {
+    this.tools.forEach((m) => {
+      m.removeFromParent();
+      disposeTree(m);
+    });
+    this.tools.clear();
   }
 
   private select(slot: number): void {
@@ -580,7 +587,9 @@ export class Game implements ShiftHost, ScreenHost {
         const pos = it.pos(tmp);
         const d = Math.hypot(pos.x - sh.player.pos.x, pos.z - sh.player.pos.z);
         if (d > it.range || Math.abs(pos.y - eye.y) > 2.2) continue;
-        const to = pos.clone().sub(cam.position);
+        // measured from the officer's head, not the camera: someone standing behind the
+        // officer (but in front of the camera) must not steal the prompt
+        const to = pos.clone().sub(eye).addScaledVector(fwd, 0.5);
         const ang = fwd.angleTo(to);
         const limit = it.range > 10 ? 0.3 : d < 1.4 ? 1.2 : 0.55;
         if (ang > limit) continue;

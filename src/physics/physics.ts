@@ -106,7 +106,8 @@ export class Physics {
       .setMass(opts.mass ?? 5)
       .setFriction(opts.friction ?? 0.8)
       .setRestitution(0.05)
-      .setCollisionGroups(groups(G.PROP, G.STATIC | G.PROP | G.CHAR | G.DOOR | G.DOWNED | G.VEHICLE | G.GLASS));
+      // props and evidence stay on the beat: they collide with the edge walls that stop the officer
+      .setCollisionGroups(groups(G.PROP, G.STATIC | G.PROP | G.CHAR | G.DOOR | G.DOWNED | G.VEHICLE | G.GLASS | G.BOUNDARY));
     const col = this.world.createCollider(shape, body);
     this.owners.set(col.handle, { kind: opts.kind ?? 'prop', id, tripFactor: opts.tripFactor ?? 0.6 });
     const d: DynBody = { id, body, mesh };

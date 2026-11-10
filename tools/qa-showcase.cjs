@@ -1,0 +1,56 @@
+// Captures 1280×720 screenshots with shadows on, from an actual played shift, into docs/screenshots/.
+const { launch } = require('./qa-lib.cjs');
+const fs = require('fs');
+(async () => {
+  fs.mkdirSync('docs/screenshots', { recursive: true });
+  const q = await launch('http://localhost:5173/?seed=11&variant=guilty&who=rhys', { timeScale: 2, viewport: { width: 1280, height: 720 } });
+  const shot = (name) => q.page.screenshot({ path: `docs/screenshots/${name}.png`, timeout: 180000 });
+  await q.wait(500);
+  await shot('01-menu');
+  await q.page.click('[data-a="start"]');
+  await q.until(() => window.__bw.state === 'playing' && window.__bw.shift);
+  await q.wait(1500);
+  await shot('02-locker-room');
+  await q.interact(-8.6, -5.9, 'Open locker', 0.1);
+  for (const id of ['torch_basic', 'radio', 'notebook']) { await q.page.click(`[data-gear="${id}"]`); await q.wait(100); }
+  await q.wait(400);
+  await shot('03-locker-screen');
+  await q.page.click('[data-a="done"]');
+  await q.goto('st_brief');
+  await q.talk('sgt');
+  await q.say('Ready for briefing');
+  await q.wait(600);
+  await shot('04-briefing');
+  await q.leave();
+  await q.goto('pv_st');
+  await q.goto({ x: -11, z: 1.0 });
+  await q.ev(() => window.__qa.look(4, 0.5, 0.08));
+  await q.wait(1500);
+  await shot('05-high-street');
+  await q.goto({ x: -3.4, z: 1.4 });
+  // wait for Glen to come past with a stack
+  await q.until(() => { const g = window.__bw.shift.npcs.get('glen'); return g.char.stack.length >= 2 && g.char.pos.z < 2.2 && g.char.pos.z > -1.5; }, null, 600000);
+  await q.ev(() => window.__qa.lookAtChar('glen', 0.08));
+  await q.wait(700);
+  await shot('06-glen-delivery');
+  await q.goto({ x: 0.3, z: -0.4 });
+  await q.talk('mara');
+  await q.say('What is the problem');
+  await q.wait(600);
+  await shot('07-talking-to-mara');
+  await q.leave();
+  await q.goto('sh_a');
+  await q.ev(() => window.__qa.look(6.5, -7, 0.14));
+  await q.wait(1500);
+  await shot('08-shop-interior');
+  await q.key('Tab');
+  await q.wait(500);
+  await shot('09-notebook');
+  await q.key('Tab');
+  await q.goto('sr_drop');
+  await q.key('1'); await q.key('f');
+  await q.ev(() => window.__qa.look(-1, -11.5, 0.12));
+  await q.wait(1500);
+  await shot('10-stockroom-torch');
+  await q.done();
+})().catch((e) => { console.error('FAILED', e.message); process.exit(1); });

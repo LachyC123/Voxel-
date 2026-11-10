@@ -24,7 +24,7 @@ export function runYardAutotest(game: Game): void {
   const pip = sh.npc('pip');
   const player = sh.player;
   const runs: Run[] = [];
-  const speeds = [5.8, 3.5, 5.8, 1.6, 5.8];
+  const speeds = [5.8, 3.5, 5.8, 5.8, 1.6, 5.8];
   const TOTAL = 20;
   let phase: 'setup' | 'ram' | 'observe' | 'done' = 'setup';
   let t = 0;
@@ -48,8 +48,10 @@ export function runYardAutotest(game: Game): void {
 
   const place = (): boolean => {
     const c = pip.char.pos;
+    const headOn = runs.length % 3 === 0 && pip.char.speed > 0.8;
+    const base = headOn ? Math.atan2(pip.char.vel.z, pip.char.vel.x) : runs.length;
     for (let k = 0; k < 12; k++) {
-      const a = (k / 12) * Math.PI * 2 + runs.length;
+      const a = (k / 12) * Math.PI * 2 * (headOn && k === 0 ? 0 : 1) + base;
       const x = c.x + Math.cos(a) * 4.2, z = c.z + Math.sin(a) * 4.2;
       if (x < -35 || x > -22.8 || z < -12 || z > -3) continue;
       from.set(c.x, c.y + 0.5, c.z);
@@ -63,7 +65,7 @@ export function runYardAutotest(game: Game): void {
   };
 
   game.autopilot = () => {
-    if (phase !== 'ram') return null;
+    if (phase !== 'ram' || game.shift !== sh) return null;
     const dx = pip.char.pos.x - player.pos.x, dz = pip.char.pos.z - player.pos.z;
     const l = Math.hypot(dx, dz) || 1;
     return { x: dx / l, z: dz / l, speed: speeds[runs.length % speeds.length] };
@@ -71,6 +73,7 @@ export function runYardAutotest(game: Game): void {
 
   game.devTick = (dt) => {
     t += dt;
+    (window as unknown as { __bwTestState: unknown }).__bwTestState = { phase, t: Number(t.toFixed(1)), wait: Number(wait.toFixed(1)), runs: runs.length, misses };
     for (const d of sh.phys.dyn.values()) {
       const v = d.body.linvel();
       const m = Math.hypot(v.x, v.y, v.z);
@@ -98,7 +101,8 @@ export function runYardAutotest(game: Game): void {
       if (done || t > 30) {
         const errors = sh.items.audit(sh.chars);
         const p = pip.char.pos;
-        const sane = Number.isFinite(p.x) && p.y > -0.5 && p.y < 2 && p.x > -36 && p.x < -22 && p.z > -13 && p.z < -2;
+        // anywhere on the playable floor is fine (the yard gate is open onto the pavement)
+        const sane = Number.isFinite(p.x) && p.y > -0.5 && p.y < 2 && p.x > -45 && p.x < 31 && p.z > -28 && p.z < 13.6;
         runs.push({
           i: runs.length + 1, speed: speeds[runs.length % speeds.length], tier, recovered: done, seconds: Number(t.toFixed(2)),
           boxBack: pip.char.stack.includes('pip_box'),

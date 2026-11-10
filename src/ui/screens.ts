@@ -61,7 +61,7 @@ export class Screens {
     this.current = name;
     const panel = this.layer.querySelector('.panel') as HTMLElement;
     panel.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => this.host.sound('ui')));
-    (panel.querySelector('button.primary') as HTMLElement | null)?.focus();
+    (panel.querySelector('button.primary') as HTMLElement | null)?.focus({ preventScroll: true });
     return panel;
   }
 

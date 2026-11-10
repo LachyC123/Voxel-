@@ -167,9 +167,12 @@ export class ShopliftingIncident implements Incident {
     const tin = sh.items.get(TIN);
     if (tin.state === 'world') {
       const p = sh.items.worldPos(TIN, tmp);
-      if (p.y < -1 || !Number.isFinite(p.y)) {
-        const at = this.tinDropPos ?? pl.pos;
-        sh.items.drop(TIN, sh.chars, undefined, new THREE.Vector3(at.x, F + 0.4, at.z));
+      if (p.y > -0.5 && Number.isFinite(p.y)) (this.tinDropPos ??= new THREE.Vector3()).copy(p);
+      const offBeat = p.x < -44.3 || p.x > 30.0 || p.z < -27.3;
+      if (p.y < -1 || !Number.isFinite(p.y) || offBeat) {
+        const at = offBeat && Number.isFinite(p.y) ? p : this.tinDropPos ?? pl.pos;
+        const x = THREE.MathUtils.clamp(at.x, -43.4, 29.2), z = Math.max(-26.4, at.z);
+        sh.items.drop(TIN, sh.chars, undefined, new THREE.Vector3(x, F + 0.4, z));
         sh.events.emit({ type: 'EvidenceRestored', target: TIN });
       }
     }
@@ -861,8 +864,10 @@ export class ShopliftingIncident implements Incident {
       if (sh.carried.includes(TIN)) return { ...base, status: 'Suspect lost. Return the recovered tin to the owner.', urgent: false, marker: shop };
       return null;
     }
-    if ((this.state === 'handed_over' || this.state === 'resolved') && sh.carried.includes(TIN) && this.variant === 'guilty' && !this.propertyReturned) {
-      return { ...base, status: 'Return the recovered tin to the owner.', urgent: false, marker: shop };
+    if ((this.state === 'handed_over' || this.state === 'resolved') && this.variant === 'guilty' && !this.propertyReturned) {
+      if (sh.carried.includes(TIN)) return { ...base, status: 'Return the recovered tin to the owner.', urgent: false, marker: shop };
+      // still lying where it was thrown: a reminder, not an obligation
+      if (sh.items.get(TIN).state === 'world') return { ...base, status: 'The tin was dropped during the chase — recover it for the owner.', urgent: false, marker: this.tinDropPos ? { x: this.tinDropPos.x, z: this.tinDropPos.z } : undefined };
     }
     if (this.variant === 'innocent' && this.phase === 'released' && !this.explainedToMara && this.state !== 'resolved') {
       return { ...base, status: 'Let the owner know what you found.', urgent: false, marker: shop };
